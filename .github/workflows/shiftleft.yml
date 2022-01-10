@@ -1,0 +1,9 @@
+source:
+  branch: master
+  scan: previous
+build_rules:
+  - id: build-rule-identifier
+    finding_types:
+    type:
+      - Sensitive Data Leak
+    threshold: 20 
