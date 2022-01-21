@@ -5,7 +5,7 @@ build_rules:
   - id: build-rule-identifier
     finding_types:
       - vuln
-      - secret
+      - oss_vuln
     severity:
       - moderate
       - critical
@@ -15,12 +15,7 @@ build_rules:
     owasp_category:
       - a1-injection
     threshold: 0
-  - id: another-build-rule
-    severity:
-      - info
-    threshold: 0
-  - id: reachable-oss-vuln
-    finding_types: Spoofing
+  - id: oss-vuln
     options:
       reachable: true
-      num_findings: 2
+      num_findings: 10
