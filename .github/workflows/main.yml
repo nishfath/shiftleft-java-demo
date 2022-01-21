@@ -1,16 +1,16 @@
 ---
 # This workflow integrates ShiftLeft NG SAST with GitHub
 # Visit https://docs.shiftleft.io for help
-name: NG SAST Scan - ShiftLeft
+name: ShiftLeft
+
 on:
-  # Trigger the workflow on push to update the baseline scan
-  # or pull request going to main
+  # Trigger the workflow on push or pull request,
+  # but only for the main branch
+  workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   NextGen-Static-Analysis:
