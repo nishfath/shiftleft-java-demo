@@ -1,0 +1,21 @@
+source:
+  branch: master
+  scan: previous
+build_rules:
+  - id: build-rule-identifier
+    finding_types:
+      - vuln
+      - oss_vuln
+    severity:
+      - moderate
+      - critical
+    type:
+      - SQL Injection
+      - Sensitive Data Leak
+    owasp_category:
+      - a1-injection
+    threshold: 0
+  - id: oss-vuln
+    options:
+      reachable: true
+      num_findings: 10
