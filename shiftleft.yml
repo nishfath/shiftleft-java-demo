@@ -1,6 +1,6 @@
 source:
   branch: master
-  scan: 274 # provide either branch or scan, not both
+  scan: previous # provide either branch or scan, not both
 build_rules:
   - id: build-rule-identifier
     finding_types:
