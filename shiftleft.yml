@@ -1,5 +1,5 @@
 source:
-  branch: master
+  branch: main
   scan: previous # provide either branch or scan, not both
 build_rules:
   - id: build-rule-identifier
