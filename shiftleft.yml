@@ -18,9 +18,9 @@ build_rules:
   - id: another-build-rule
     severity:
       - info
-    threshold: 100
+    threshold: 10
   - id: reachable-oss-vuln
     finding_types: [oss_vuln]
     options:
       reachable: true
-      num_findings: 2
+      num_findings: 10
