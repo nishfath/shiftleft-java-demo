@@ -1,6 +1,6 @@
 source:
   branch: master
-  scan: 274 # provide either branch or scan, not both
+  scan: previous # provide either branch or scan, not both
 build_rules:
   - id: build-rule-identifier
     finding_types:
@@ -23,4 +23,4 @@ build_rules:
     finding_types: [oss_vuln]
     options:
       reachable: true
-      num_findings: 2
+      num_findings: 0
