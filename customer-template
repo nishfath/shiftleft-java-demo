@@ -1,0 +1,65 @@
+{{ if .is_markdown }}{{ logo }}
+{{ end }}
+{{- title_begin -}}
+Checking analysis of application {{ printf "%#q" .app }} against {{ .request.Rules | len }} build rules.
+{{- title_end }}
+
+{{ if .is_markdown }}Using `sl` version {{ .version }} ({{ .githash }}).
+
+{{ end -}}
+
+{{/* header above, body below */}}
+
+{{- header_begin }}{{ if .request.IsDiff -}}
+Checking new findings between {{ link_diff }}.
+{{- else -}}
+Checking findings on {{ link_single }}.
+{{- end -}}{{ header_end }}
+{{ if .request.Rules }}
+Results per rule:{{"\n\n"}}
+  {{- range $rule := .request.Rules }}
+    {{- $ruleResult := index $.response.Rules $rule.ID -}}
+    {{bullet $ruleResult.Failed }}{{ $rule.ID }}: {{ if $ruleResult.Failed -}} {{"FAIL"|bold}} {{- else -}} pass {{- end }}
+  ({{ $ruleResult.Matched }} matched {{ if eq $ruleResult.Matched 1 -}} vulnerability {{- else -}} vulnerabilities {{- end -}}
+      ; configured threshold is {{ $rule.Threshold }}).{{"\n"}}
+    {{- if $ruleResult.Findings -}}
+      {{- if gt $ruleResult.Matched ($ruleResult.Findings|len) }}
+  First {{ if eq ($ruleResult.Findings|len) 1 }}{{ if $.request.IsDiff }}new {{end}}finding{{- else -}}
+          {{ $ruleResult.Findings|len }}{{ if $.request.IsDiff }} new{{end}} findings{{end}}:
+      {{- else if $.request.IsDiff }}
+  New {{ if eq ($ruleResult.Findings|len) 1 }}finding{{else}}findings{{end}}:
+      {{- else }}
+  {{ if eq ($ruleResult.Findings|len) 1 }}Finding{{else}}Findings{{end}}:
+      {{- end -}}{{"\n\n"}}
+      {{- if $ruleResult.HasCVEs -}}
+    {{- with $t := table "  " ">ID" ">Severity<" "CVE" "Title" -}}
+     {{- range $ruleResult.Findings -}}
+       {{- table_append $t (.ID|link_finding) (.Last "severity"|severity_colorize) (.Last "cve") .Title -}}
+     {{- end -}}
+     {{- $t -}}
+    {{- end -}}
+      {{- else -}}
+    {{- with $t := table "  " ">ID" ">Severity<" "Title" -}}
+     {{- range $ruleResult.Findings -}}
+       {{- table_append $t (.ID|link_finding) (.Last "severity"|severity_colorize) .Title -}}
+     {{- end -}}
+     {{- $t -}}
+    {{- end -}}
+      {{- end -}}{{- "\n" -}}
+      {{- summary "  " (index $ruleResult.ByTag "severity") "Severity" "critical" "moderate" "info" -}}
+      {{- summary "  " (index $ruleResult.ByTag "finding_type") "Finding Type" -}}
+      {{- range $tag, $title := $.interesting -}}
+    {{- summary "  " (index $ruleResult.ByTag $tag) $title -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end }}
+{{- tail_urls }}
+{{ if eq .num_failed 0 }}
+All rules passed.
+{{- else if .is_markdown }}
+{{- if eq .num_failed 1 }}
+1 rule failed.
+{{- else }}
+{{ .num_failed }} rules failed.
+{{- end }}{{ end }}
