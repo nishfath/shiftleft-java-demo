@@ -1,26 +1,32 @@
 source:
-  branch: master
-  scan: 274 # provide either branch or scan, not both
+  branch: main
 build_rules:
-  - id: build-rule-identifier
+  - id: "No critical or high SAST findings"
     finding_types:
       - vuln
       - secret
-    severity:
-      - moderate
+    cvss_31_severity_ratings:
       - critical
-    type:
-      - SQL Injection
-      - Sensitive Data Leak
-    owasp_category:
-      - a1-injection
-    threshold: 10
-  - id: another-build-rule
-    severity:
-      - info
-    threshold: 100
-  - id: reachable-oss-vuln
-    finding_types: [oss_vuln]
+      - high
+    threshold: 0
+    options:
+      num_findings: 10 # Return 10 sast findings
+  - id: "No reachable SCA findings"
+    finding_types:
+      - oss_vuln
+    cvss_31_severity_ratings:
+      - critical
+      - high
+    threshold: 0
     options:
       reachable: true
-      num_findings: 2
+      num_findings: 10 # Return 10 reachable sca findings
+  - id: "No critical or high container findings"
+    finding_types:
+      - container
+    cvss_31_severity_ratings:
+      - critical
+      - high
+    threshold: 0
+    options:
+      num_findings: 10 # Return 10 container findings
