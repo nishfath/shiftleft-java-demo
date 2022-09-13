@@ -1,5 +1,5 @@
-source:
-  branch: main
+#source:
+#  branch: main
 build_rules:
   - id: "No critical or high SAST findings"
     finding_types:
