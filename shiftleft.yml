@@ -8,7 +8,7 @@ build_rules:
     cvss_31_severity_ratings:
       - critical
       - high
-    threshold: 0
+    threshold: 10
     options:
       num_findings: 10 # Return 10 sast findings
   - id: "No reachable SCA findings"
@@ -17,7 +17,7 @@ build_rules:
     cvss_31_severity_ratings:
       - critical
       - high
-    threshold: 0
+    threshold: 10
     options:
       reachable: true
       num_findings: 10 # Return 10 reachable sca findings
@@ -27,6 +27,6 @@ build_rules:
     cvss_31_severity_ratings:
       - critical
       - high
-    threshold: 0
+    threshold: 10
     options:
       num_findings: 10 # Return 10 container findings
