@@ -7,5 +7,5 @@ ngsast:
     language: JAVA
 additional-findings:
   hsl-secrets:
-    entropy: 0.5
+    entropy: 1.0
     name: secrets
