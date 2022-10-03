@@ -1,0 +1,27 @@
+ngsast:
+  - app:
+      name: shiftleft-java-demo
+      language: JAVA
+      policy: io.shiftleft/shiftleft-java-demo
+      modify-findings:
+        - my_modification_rule
+  - default:
+      policy: io.shiftleft/defaultWithDict
+finding-modifications:
+  my_modification_rule:
+    filter:
+      category:
+        - Sensitive Data Leak
+      type:
+        - vuln
+      severity:
+        - critical
+    tags:
+      - key: cvss_score
+        value: 5
+      - key: severity
+        value: medium
+      - key: cvss_31_severity_rating
+        value: medium
+      - key: some-custom-tag
+        value: todo
