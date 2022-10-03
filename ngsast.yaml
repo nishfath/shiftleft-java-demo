@@ -5,8 +5,6 @@ ngsast:
       policy: io.shiftleft/shiftleft-java-demo
       modify-findings:
         - my_modification_rule
-  - default:
-      policy: io.shiftleft/defaultWithDict
 finding-modifications:
   my_modification_rule:
     filter:
@@ -20,8 +18,7 @@ finding-modifications:
       - key: cvss_score
         value: 5
       - key: severity
-        value: medium
+        value: moderate
       - key: cvss_31_severity_rating
         value: medium
-      - key: some-custom-tag
-        value: todo
+     
