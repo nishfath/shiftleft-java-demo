@@ -1,6 +1,6 @@
 ngsast:
 - app:
-    name: helloshiftleft-spring-app
+    name: shiftleft-java-demo
     additional-findings:
     - hsl-secrets
     policy: io.shiftleft/helloshiftleft
