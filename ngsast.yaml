@@ -15,7 +15,7 @@ finding-modifications:
       type:
         - vuln
       severity:
-        - critical
+        - High
     tags:
       - key: cvss_score
         value: 5
