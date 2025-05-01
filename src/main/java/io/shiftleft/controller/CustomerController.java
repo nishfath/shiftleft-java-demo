@@ -311,34 +311,47 @@ public String debug(@RequestParam String customerId,
    * @throws IOException
    */
 @RequestMapping(value = "/debug", method = RequestMethod.GET)
-public String debug(@RequestParam String customerId,
-                  @RequestParam int clientId,
-                  @RequestParam String firstName,
-                  @RequestParam String lastName,
-                  @RequestParam String dateOfBirth,
-                  @RequestParam String ssn,
-                  @RequestParam String socialSecurityNum,
-                  @RequestParam String tin,
-                  @RequestParam String phoneNumber,
-                  HttpServletResponse httpResponse,
-                 WebRequest request) throws IOException{
+  public String debug(@RequestParam String customerId,
+                      @RequestParam int clientId,
+                      @RequestParam String firstName,
+                      @RequestParam String lastName,
+                      @RequestParam String dateOfBirth,
+                      @RequestParam String ssn,
+                      @RequestParam String socialSecurityNum,
+                      @RequestParam String tin,
+                      @RequestParam String phoneNumber,
+                      HttpServletResponse httpResponse,
+                      WebRequest request) throws IOException{
 
     // empty for now, because we debug
     Set<Account> accounts1 = new HashSet<Account>();
     //dateofbirth example -> "1982-01-10"
-    Customer customer1 = new Customer(customerId, clientId, firstName, lastName, DateTime.parse(dateOfBirth).toDate(),
-                                  ssn, socialSecurityNum, tin, phoneNumber, new Address("Debug str",
-                                  "", "Debug city", "CA", "12345"),
-                                  accounts1);
+    
+    // Sanitize all user inputs before creating the customer object
+    String sanitizedCustomerId = HtmlUtils.htmlEscape(customerId);
+    String sanitizedFirstName = HtmlUtils.htmlEscape(firstName);
+    String sanitizedLastName = HtmlUtils.htmlEscape(lastName);
+    String sanitizedSSN = HtmlUtils.htmlEscape(ssn);
+    String sanitizedSocialSecurityNum = HtmlUtils.htmlEscape(socialSecurityNum);
+    String sanitizedTIN = HtmlUtils.htmlEscape(tin);
+    String sanitizedPhoneNumber = HtmlUtils.htmlEscape(phoneNumber);
+    
+    Customer customer1 = new Customer(sanitizedCustomerId, clientId, sanitizedFirstName, 
+                                      sanitizedLastName, DateTime.parse(dateOfBirth).toDate(),
+                                      sanitizedSSN, sanitizedSocialSecurityNum, sanitizedTIN, 
+                                      sanitizedPhoneNumber, new Address("Debug str",
+                                      "", "Debug city", "CA", "12345"),
+                                      accounts1);
 
     customerRepository.save(customer1);
     httpResponse.setStatus(HttpStatus.CREATED.value());
     httpResponse.setHeader("Location", String.format("%s/customers/%s",
-                       request.getContextPath(), customer1.getId()));
+                           request.getContextPath(), customer1.getId()));
 
-    // Properly escape HTML characters to prevent XSS attacks
-    return StringEscapeUtils.escapeHtml4(customer1.toString());
-}
+    // Properly escape the output before returning
+    return HtmlUtils.htmlEscape(customer1.toString());
+  }
+
 
 
 
