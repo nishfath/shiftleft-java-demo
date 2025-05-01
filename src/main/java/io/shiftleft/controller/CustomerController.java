@@ -109,32 +109,36 @@ public class CustomerController {
 	 * @param customerId
 	 * @return retrieved customer
 	 */
-	@RequestMapping(value = "/customers/{customerId}", method = RequestMethod.GET)
-	public Customer getCustomer(@PathVariable("customerId") Long customerId) {
+@RequestMapping(value = "/customers/{customerId}", method = RequestMethod.GET)
+public Customer getCustomer(@PathVariable("customerId") Long customerId) {
 
-		/* validate customer Id parameter */
-      if (null == customerId) {
+    /* validate customer Id parameter */
+    if (null == customerId) {
         throw new InvalidCustomerRequestException();
-      }
-
-      Customer customer = customerRepository.findOne(customerId);
-		if (null == customer) {
-		  throw new CustomerNotFoundException();
-	  }
-
-	  Account account = new Account(4242l,1234, "savings", 1, 0);
-	  log.info("Account Data is {}", account);
-	  log.info("Customer Data is {}", customer);
-
-      try {
-        dispatchEventToSalesForce(String.format(" Customer %s Logged into SalesForce", customer));
-      } catch (Exception e) {
-        log.error("Failed to Dispatch Event to SalesForce . Details {} ", e.getLocalizedMessage());
-
-      }
-
-      return customer;
     }
+
+    Customer customer = customerRepository.findOne(customerId);
+    if (null == customer) {
+        throw new CustomerNotFoundException();
+    }
+
+    Account account = new Account(4242l, 1234, "savings", 1, 0);
+    
+    // Log only non-sensitive information like IDs instead of entire objects
+    log.info("Processing account ID: null", account.getId());
+    log.info("Retrieved customer ID: null", customer.getId());
+
+    try {
+        // Avoid logging sensitive customer information in the SalesForce event
+        dispatchEventToSalesForce(String.format("Customer ID %s logged into SalesForce", customer.getId()));
+    } catch (Exception e) {
+        // Don't include exception details in logs that might contain sensitive data
+        log.error("Failed to dispatch event to SalesForce. Error type: null", e.getClass().getName());
+    }
+
+    return customer;
+}
+
 
     /**
      * Handler for / loads the index.tpl
