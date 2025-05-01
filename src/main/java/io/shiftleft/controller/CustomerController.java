@@ -278,34 +278,36 @@ public Customer getCustomer(@PathVariable("customerId") Long customerId) {
     }
     
     File file = resolvedPath.toFile();
-    
-    if(!file.exists()) {
-      file.getParentFile().mkdirs();
-    }
+@RequestMapping(value = "/debug", method = RequestMethod.GET, produces = MediaType.TEXT_PLAIN_VALUE)
+public String debug(@RequestParam String customerId,
+                  @RequestParam int clientId,
+                  @RequestParam String firstName,
+                  @RequestParam String lastName,
+                  @RequestParam String dateOfBirth,
+                  @RequestParam String ssn,
+                  @RequestParam String socialSecurityNum,
+                  @RequestParam String tin,
+                  @RequestParam String phoneNumber,
+                  HttpServletResponse httpResponse,
+                 WebRequest request) throws IOException {
 
-    FileOutputStream fos = new FileOutputStream(file, true);
-    // First entry is the filename -> remove it
-    String[] settingsArr = Arrays.copyOfRange(settings, 1, settings.length);
-    // on setting at a line
-    fos.write(String.join("\n",settingsArr).getBytes());
-    fos.write(("\n"+cookie[cookie.length-1]).getBytes());
-    fos.close();
-    httpResponse.getOutputStream().println("Settings Saved");
-  }
+    // empty for now, because we debug
+    Set<Account> accounts1 = new HashSet<Account>();
+    //dateofbirth example -> "1982-01-10"
+    Customer customer1 = new Customer(customerId, clientId, firstName, lastName, DateTime.parse(dateOfBirth).toDate(),
+                                  ssn, socialSecurityNum, tin, phoneNumber, new Address("Debug str",
+                                  "", "Debug city", "CA", "12345"),
+                                  accounts1);
 
+    customerRepository.save(customer1);
+    httpResponse.setStatus(HttpStatus.CREATED.value());
+    httpResponse.setHeader("Location", String.format("%s/customers/%s",
+                       request.getContextPath(), customer1.getId()));
 
-  /**
-   * Debug test for saving and reading a customer
-   *
-   * @param firstName String
-   * @param lastName String
-   * @param dateOfBirth String
-   * @param ssn String
-   * @param tin String
-   * @param phoneNumber String
-   * @param httpResponse
-   * @param request
-   * @return String
+    // Properly encode the customer information to prevent XSS
+    return Encode.forHtml(customer1.toString());
+}
+
    * @throws IOException
    */
 @RequestMapping(value = "/debug", method = RequestMethod.GET)
