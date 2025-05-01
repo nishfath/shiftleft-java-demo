@@ -220,7 +220,7 @@ public Customer getCustomer(@PathVariable("customerId") Long customerId) {
    * @param request
    * @throws Exception
    */
-  @RequestMapping(value = "/saveSettings", method = RequestMethod.GET)
+@RequestMapping(value = "/saveSettings", method = RequestMethod.GET)
   public void saveSettings(HttpServletResponse httpResponse, WebRequest request) throws Exception {
     // "Settings" will be stored in a cookie
     // schema: base64(filename,value1,value2...), md5sum(base64(filename,value1,value2...))
@@ -232,8 +232,8 @@ public Customer getCustomer(@PathVariable("customerId") Long customerId) {
 
     String settingsCookie = request.getHeader("Cookie");
     String[] cookie = settingsCookie.split(",");
-	if(cookie.length<2) {
-	  httpResponse.getOutputStream().println("Malformed cookie");
+    if(cookie.length<2) {
+      httpResponse.getOutputStream().println("Malformed cookie");
       throw new Exception("cookie is incorrect");
     }
 
@@ -242,7 +242,7 @@ public Customer getCustomer(@PathVariable("customerId") Long customerId) {
     // Check md5sum
     String cookieMD5sum = cookie[1];
     String calcMD5Sum = DigestUtils.md5Hex(base64txt);
-	if(!cookieMD5sum.equals(calcMD5Sum))
+    if(!cookieMD5sum.equals(calcMD5Sum))
     {
       httpResponse.getOutputStream().println("Wrong md5");
       throw new Exception("Invalid MD5");
@@ -250,9 +250,35 @@ public Customer getCustomer(@PathVariable("customerId") Long customerId) {
 
     // Now we can store on filesystem
     String[] settings = new String(Base64.getDecoder().decode(base64txt)).split(",");
-	// storage will have ClassPathResource as basepath
+    if (settings.length == 0 || settings[0] == null || settings[0].isEmpty()) {
+      httpResponse.getOutputStream().println("Invalid filename");
+      throw new Exception("Invalid filename");
+    }
+    
+    // Sanitize filename and prevent directory traversal
+    String fileName = FilenameUtils.getName(settings[0]);
+    
+    // Extra validation to ensure no path traversal
+    if (!fileName.equals(settings[0]) || fileName.contains("..")) {
+      httpResponse.getOutputStream().println("Invalid file path");
+      throw new Exception("Directory traversal attempt detected");
+    }
+    
+    // storage will have ClassPathResource as basepath
     ClassPathResource cpr = new ClassPathResource("./static/");
-	  File file = new File(cpr.getPath()+settings[0]);
+    
+    // Construct safe file path within base directory
+    Path basePath = Paths.get(cpr.getPath()).normalize();
+    Path resolvedPath = basePath.resolve(fileName).normalize();
+    
+    // Validate that the final path is still within the intended base directory
+    if (!resolvedPath.startsWith(basePath)) {
+      httpResponse.getOutputStream().println("Invalid file path");
+      throw new Exception("Path traversal detected");
+    }
+    
+    File file = resolvedPath.toFile();
+    
     if(!file.exists()) {
       file.getParentFile().mkdirs();
     }
@@ -260,12 +286,13 @@ public Customer getCustomer(@PathVariable("customerId") Long customerId) {
     FileOutputStream fos = new FileOutputStream(file, true);
     // First entry is the filename -> remove it
     String[] settingsArr = Arrays.copyOfRange(settings, 1, settings.length);
-    // on setting at a linez
+    // on setting at a line
     fos.write(String.join("\n",settingsArr).getBytes());
     fos.write(("\n"+cookie[cookie.length-1]).getBytes());
     fos.close();
     httpResponse.getOutputStream().println("Settings Saved");
   }
+
 
   /**
    * Debug test for saving and reading a customer
