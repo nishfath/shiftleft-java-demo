@@ -1,0 +1,15 @@
+steps:
+  - step:
+      type: Bandit
+      name: bandit_scan_orchestrated
+      identifier: bandit_scan_orchestrated
+      spec:
+        mode: orchestration
+        config: default
+        target:
+          name: <+input>
+          type: repository
+          variant: <+input>
+        advanced:
+          log:
+            level: info
