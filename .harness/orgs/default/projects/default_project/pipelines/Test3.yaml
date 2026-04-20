@@ -1,0 +1,50 @@
+pipeline:
+  name: Test3
+  identifier: Test3
+  projectIdentifier: default_project
+  orgIdentifier: default
+  tags: {}
+  properties:
+    ci:
+      codebase:
+        connectorRef: GHconnector
+        repoName: shiftleft-js-demo
+        build: <+input>
+  stages:
+    - stage:
+        name: test3-stage
+        identifier: test3stage
+        description: ""
+        type: SecurityTests
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Windows
+            arch: Amd64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: HarnessSAST
+                  name: HarnessCode_1
+                  identifier: HarnessCode_1
+                  spec:
+                    target:
+                      detection: auto
+                      type: repository
+                    advanced:
+                      log:
+                        level: info
+                      args: {}
+                    mode: orchestration
+                    config: sast
+                    tool:
+                      target_language: ""
+                      app_name: ""
