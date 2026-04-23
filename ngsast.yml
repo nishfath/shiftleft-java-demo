@@ -1,0 +1,12 @@
+ngsast:
+- app:
+    name: shiftleft-java-demo
+    additional-findings:
+    - hsl-secrets
+additional-findings:
+  hsl-secrets:
+    entropy: 1.0
+    name: secrets
+    include:
+      - "**/*.properties"
+      - src/**
