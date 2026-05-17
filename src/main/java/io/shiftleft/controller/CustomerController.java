@@ -109,32 +109,36 @@ public class CustomerController {
 	 * @param customerId
 	 * @return retrieved customer
 	 */
-	@RequestMapping(value = "/customers/{customerId}", method = RequestMethod.GET)
-	public Customer getCustomer(@PathVariable("customerId") Long customerId) {
+@RequestMapping(value = "/customers/{customerId}", method = RequestMethod.GET)
+public Customer getCustomer(@PathVariable("customerId") Long customerId) {
 
-		/* validate customer Id parameter */
-      if (null == customerId) {
+    /* validate customer Id parameter */
+    if (null == customerId) {
         throw new InvalidCustomerRequestException();
-      }
-
-      Customer customer = customerRepository.findOne(customerId);
-		if (null == customer) {
-		  throw new CustomerNotFoundException();
-	  }
-
-	  Account account = new Account(4242l,1234, "savings", 1, 0);
-	  log.info("Account Data is {}", account);
-	  log.info("Customer Data is {}", customer);
-
-      try {
-        dispatchEventToSalesForce(String.format(" Customer %s Logged into SalesForce", customer));
-      } catch (Exception e) {
-        log.error("Failed to Dispatch Event to SalesForce . Details {} ", e.getLocalizedMessage());
-
-      }
-
-      return customer;
     }
+
+    Customer customer = customerRepository.findOne(customerId);
+    if (null == customer) {
+        throw new CustomerNotFoundException();
+    }
+
+    Account account = new Account(4242l, 1234, "savings", 1, 0);
+    
+    // Log only non-sensitive information like IDs instead of entire objects
+    log.info("Processing account ID: null", account.getId());
+    log.info("Retrieved customer ID: null", customer.getId());
+
+    try {
+        // Avoid logging sensitive customer information in the SalesForce event
+        dispatchEventToSalesForce(String.format("Customer ID %s logged into SalesForce", customer.getId()));
+    } catch (Exception e) {
+        // Don't include exception details in logs that might contain sensitive data
+        log.error("Failed to dispatch event to SalesForce. Error type: null", e.getClass().getName());
+    }
+
+    return customer;
+}
+
 
     /**
      * Handler for / loads the index.tpl
@@ -216,7 +220,7 @@ public class CustomerController {
    * @param request
    * @throws Exception
    */
-  @RequestMapping(value = "/saveSettings", method = RequestMethod.GET)
+@RequestMapping(value = "/saveSettings", method = RequestMethod.GET)
   public void saveSettings(HttpServletResponse httpResponse, WebRequest request) throws Exception {
     // "Settings" will be stored in a cookie
     // schema: base64(filename,value1,value2...), md5sum(base64(filename,value1,value2...))
@@ -228,8 +232,8 @@ public class CustomerController {
 
     String settingsCookie = request.getHeader("Cookie");
     String[] cookie = settingsCookie.split(",");
-	if(cookie.length<2) {
-	  httpResponse.getOutputStream().println("Malformed cookie");
+    if(cookie.length<2) {
+      httpResponse.getOutputStream().println("Malformed cookie");
       throw new Exception("cookie is incorrect");
     }
 
@@ -238,7 +242,7 @@ public class CustomerController {
     // Check md5sum
     String cookieMD5sum = cookie[1];
     String calcMD5Sum = DigestUtils.md5Hex(base64txt);
-	if(!cookieMD5sum.equals(calcMD5Sum))
+    if(!cookieMD5sum.equals(calcMD5Sum))
     {
       httpResponse.getOutputStream().println("Wrong md5");
       throw new Exception("Invalid MD5");
@@ -246,55 +250,96 @@ public class CustomerController {
 
     // Now we can store on filesystem
     String[] settings = new String(Base64.getDecoder().decode(base64txt)).split(",");
-	// storage will have ClassPathResource as basepath
-    ClassPathResource cpr = new ClassPathResource("./static/");
-	  File file = new File(cpr.getPath()+settings[0]);
-    if(!file.exists()) {
-      file.getParentFile().mkdirs();
+    if (settings.length == 0 || settings[0] == null || settings[0].isEmpty()) {
+      httpResponse.getOutputStream().println("Invalid filename");
+      throw new Exception("Invalid filename");
     }
-
-    FileOutputStream fos = new FileOutputStream(file, true);
-    // First entry is the filename -> remove it
-    String[] settingsArr = Arrays.copyOfRange(settings, 1, settings.length);
-    // on setting at a linez
-    fos.write(String.join("\n",settingsArr).getBytes());
-    fos.write(("\n"+cookie[cookie.length-1]).getBytes());
-    fos.close();
-    httpResponse.getOutputStream().println("Settings Saved");
-  }
-
-  /**
-   * Debug test for saving and reading a customer
-   *
-   * @param firstName String
-   * @param lastName String
-   * @param dateOfBirth String
-   * @param ssn String
-   * @param tin String
-   * @param phoneNumber String
-   * @param httpResponse
-   * @param request
-   * @return String
-   * @throws IOException
-   */
-  @RequestMapping(value = "/debug", method = RequestMethod.GET)
-  public String debug(@RequestParam String customerId,
-					  @RequestParam int clientId,
-					  @RequestParam String firstName,
-                      @RequestParam String lastName,
-                      @RequestParam String dateOfBirth,
-                      @RequestParam String ssn,
-					  @RequestParam String socialSecurityNum,
-                      @RequestParam String tin,
-                      @RequestParam String phoneNumber,
-                      HttpServletResponse httpResponse,
-                     WebRequest request) throws IOException{
+    
+    // Sanitize filename and prevent directory traversal
+    String fileName = FilenameUtils.getName(settings[0]);
+    
+    // Extra validation to ensure no path traversal
+    if (!fileName.equals(settings[0]) || fileName.contains("..")) {
+      httpResponse.getOutputStream().println("Invalid file path");
+      throw new Exception("Directory traversal attempt detected");
+    }
+    
+    // storage will have ClassPathResource as basepath
+    ClassPathResource cpr = new ClassPathResource("./static/");
+    
+    // Construct safe file path within base directory
+    Path basePath = Paths.get(cpr.getPath()).normalize();
+    Path resolvedPath = basePath.resolve(fileName).normalize();
+    
+    // Validate that the final path is still within the intended base directory
+    if (!resolvedPath.startsWith(basePath)) {
+      httpResponse.getOutputStream().println("Invalid file path");
+      throw new Exception("Path traversal detected");
+    }
+    
+    File file = resolvedPath.toFile();
+@RequestMapping(value = "/debug", method = RequestMethod.GET, produces = MediaType.TEXT_PLAIN_VALUE)
+public String debug(@RequestParam String customerId,
+                  @RequestParam int clientId,
+                  @RequestParam String firstName,
+                  @RequestParam String lastName,
+                  @RequestParam String dateOfBirth,
+                  @RequestParam String ssn,
+                  @RequestParam String socialSecurityNum,
+                  @RequestParam String tin,
+                  @RequestParam String phoneNumber,
+                  HttpServletResponse httpResponse,
+                 WebRequest request) throws IOException {
 
     // empty for now, because we debug
     Set<Account> accounts1 = new HashSet<Account>();
     //dateofbirth example -> "1982-01-10"
     Customer customer1 = new Customer(customerId, clientId, firstName, lastName, DateTime.parse(dateOfBirth).toDate(),
-                                      ssn, socialSecurityNum, tin, phoneNumber, new Address("Debug str",
+                                  ssn, socialSecurityNum, tin, phoneNumber, new Address("Debug str",
+                                  "", "Debug city", "CA", "12345"),
+                                  accounts1);
+
+    customerRepository.save(customer1);
+    httpResponse.setStatus(HttpStatus.CREATED.value());
+    httpResponse.setHeader("Location", String.format("%s/customers/%s",
+                       request.getContextPath(), customer1.getId()));
+
+    // Properly encode the customer information to prevent XSS
+    return Encode.forHtml(customer1.toString());
+}
+
+   * @throws IOException
+   */
+@RequestMapping(value = "/debug", method = RequestMethod.GET)
+  public String debug(@RequestParam String customerId,
+                      @RequestParam int clientId,
+                      @RequestParam String firstName,
+                      @RequestParam String lastName,
+                      @RequestParam String dateOfBirth,
+                      @RequestParam String ssn,
+                      @RequestParam String socialSecurityNum,
+                      @RequestParam String tin,
+                      @RequestParam String phoneNumber,
+                      HttpServletResponse httpResponse,
+                      WebRequest request) throws IOException{
+
+    // empty for now, because we debug
+    Set<Account> accounts1 = new HashSet<Account>();
+    //dateofbirth example -> "1982-01-10"
+    
+    // Sanitize all user inputs before creating the customer object
+    String sanitizedCustomerId = HtmlUtils.htmlEscape(customerId);
+    String sanitizedFirstName = HtmlUtils.htmlEscape(firstName);
+    String sanitizedLastName = HtmlUtils.htmlEscape(lastName);
+    String sanitizedSSN = HtmlUtils.htmlEscape(ssn);
+    String sanitizedSocialSecurityNum = HtmlUtils.htmlEscape(socialSecurityNum);
+    String sanitizedTIN = HtmlUtils.htmlEscape(tin);
+    String sanitizedPhoneNumber = HtmlUtils.htmlEscape(phoneNumber);
+    
+    Customer customer1 = new Customer(sanitizedCustomerId, clientId, sanitizedFirstName, 
+                                      sanitizedLastName, DateTime.parse(dateOfBirth).toDate(),
+                                      sanitizedSSN, sanitizedSocialSecurityNum, sanitizedTIN, 
+                                      sanitizedPhoneNumber, new Address("Debug str",
                                       "", "Debug city", "CA", "12345"),
                                       accounts1);
 
@@ -303,8 +348,13 @@ public class CustomerController {
     httpResponse.setHeader("Location", String.format("%s/customers/%s",
                            request.getContextPath(), customer1.getId()));
 
-    return customer1.toString().toLowerCase().replace("script","");
+    // Properly escape the output before returning
+    return HtmlUtils.htmlEscape(customer1.toString());
   }
+
+
+
+
 
 	/**
 	 * Debug test for saving and reading a customer
