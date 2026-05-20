@@ -216,52 +216,176 @@ public class CustomerController {
    * @param request
    * @throws Exception
    */
-  @RequestMapping(value = "/saveSettings", method = RequestMethod.GET)
-  public void saveSettings(HttpServletResponse httpResponse, WebRequest request) throws Exception {
+@RequestMapping(value = "/saveSettings", method = RequestMethod.POST)
+public void saveSettings(HttpServletResponse httpResponse, WebRequest request) throws Exception {
+    // Use POST method instead of GET for state-changing operations
     // "Settings" will be stored in a cookie
     // schema: base64(filename,value1,value2...), md5sum(base64(filename,value1,value2...))
+    
+    Logger logger = Logger.getLogger(CustomerController.class.getName());
+    FileOutputStream fos = null;
+    
+    try {
+        // Validate cookie
+        if (!checkCookie(request)) {
+            httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            httpResponse.getOutputStream().println("Error: Authentication failed");
+            return;
+        }
 
-    if (!checkCookie(request)){
-      httpResponse.getOutputStream().println("Error");
-      throw new Exception("cookie is incorrect");
+        String settingsCookie = request.getHeader("Cookie");
+        if (settingsCookie == null || settingsCookie.isEmpty()) {
+            httpResponse.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            httpResponse.getOutputStream().println("Error: Missing cookie");
+            return;
+        }
+
+        String[] cookie = settingsCookie.split(",");
+        if (cookie.length < 2) {
+            httpResponse.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            httpResponse.getOutputStream().println("Error: Malformed cookie");
+            return;
+        }
+
+        String base64txt = cookie[0].replace("settings=", "");
+
+        // Validate MD5 checksum
+        String cookieMD5sum = cookie[1];
+        String calcMD5Sum = DigestUtils.md5Hex(base64txt);
+        if (!cookieMD5sum.equals(calcMD5Sum)) {
+            httpResponse.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            httpResponse.getOutputStream().println("Error: Invalid MD5 checksum");
+            return;
+        }
+
+        // Decode and parse settings
+        String[] settings = new String(Base64.getDecoder().decode(base64txt)).split(",");
+        if (settings.length == 0) {
+            httpResponse.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            httpResponse.getOutputStream().println("Error: Empty settings");
+            return;
+        }
+
+        // Extract and validate filename
+        String userProvidedFilename = settings[0];
+        
+        // Sanitize filename to prevent directory traversal
+        String sanitizedFilename = sanitizeFilename(userProvidedFilename);
+        if (sanitizedFilename == null || sanitizedFilename.isEmpty()) {
+            httpResponse.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            httpResponse.getOutputStream().println("Error: Invalid filename");
+            return;
+        }
+
+        // Validate file extension whitelist
+        if (!isAllowedFileExtension(sanitizedFilename)) {
+            httpResponse.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            httpResponse.getOutputStream().println("Error: File type not allowed");
+            return;
+        }
+
+        // Get base directory and resolve path securely
+        ClassPathResource cpr = new ClassPathResource("./static/");
+        Path basePath = Paths.get(cpr.getPath()).normalize().toAbsolutePath();
+        Path resolvedPath = basePath.resolve(sanitizedFilename).normalize().toAbsolutePath();
+
+        // Validate that resolved path is within base directory
+        if (!resolvedPath.startsWith(basePath)) {
+            httpResponse.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            httpResponse.getOutputStream().println("Error: Access denied - path traversal detected");
+            logger.warning("Path traversal attempt detected: " + userProvidedFilename);
+            return;
+        }
+
+        File file = resolvedPath.toFile();
+        
+        // Create parent directories if needed with secure permissions
+        if (!file.exists()) {
+            File parentDir = file.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+                if (!parentDir.mkdirs()) {
+                    httpResponse.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                    httpResponse.getOutputStream().println("Error: Failed to create directory");
+                    return;
+                }
+            }
+        }
+
+        // Write settings to file
+        fos = new FileOutputStream(file, true);
+        
+        // Extract settings content (skip filename)
+        String[] settingsArr = Arrays.copyOfRange(settings, 1, settings.length);
+        
+        // Write settings content
+        fos.write(String.join("\n", settingsArr).getBytes("UTF-8"));
+        fos.write(("\n" + cookie[cookie.length - 1]).getBytes("UTF-8"));
+        
+        httpResponse.setStatus(HttpServletResponse.SC_OK);
+        httpResponse.getOutputStream().println("Settings Saved");
+        
+    } catch (IllegalArgumentException e) {
+        httpResponse.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        httpResponse.getOutputStream().println("Error: Invalid input");
+        logger.severe("Invalid input: " + e.getMessage());
+    } catch (IOException e) {
+        httpResponse.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        httpResponse.getOutputStream().println("Error: Failed to save settings");
+        logger.severe("IO error: " + e.getMessage());
+    } finally {
+        // Ensure resources are closed
+        if (fos != null) {
+            try {
+                fos.close();
+            } catch (IOException e) {
+                logger.severe("Failed to close file stream: " + e.getMessage());
+            }
+        }
     }
+}
 
-    String settingsCookie = request.getHeader("Cookie");
-    String[] cookie = settingsCookie.split(",");
-	if(cookie.length<2) {
-	  httpResponse.getOutputStream().println("Malformed cookie");
-      throw new Exception("cookie is incorrect");
+private String sanitizeFilename(String filename) {
+    if (filename == null || filename.isEmpty()) {
+        return null;
     }
-
-    String base64txt = cookie[0].replace("settings=","");
-
-    // Check md5sum
-    String cookieMD5sum = cookie[1];
-    String calcMD5Sum = DigestUtils.md5Hex(base64txt);
-	if(!cookieMD5sum.equals(calcMD5Sum))
-    {
-      httpResponse.getOutputStream().println("Wrong md5");
-      throw new Exception("Invalid MD5");
+    
+    // Remove any path separators and traversal sequences
+    String sanitized = filename.replaceAll("[.]{2,}", "")
+                              .replaceAll("[/\\\\]", "")
+                              .replaceAll("[\u0000-\u001f]", "")
+                              .trim();
+    
+    // Validate filename pattern - allow only alphanumeric, dash, underscore, and dot
+    if (!sanitized.matches("^[a-zA-Z0-9._-]+$")) {
+        return null;
     }
-
-    // Now we can store on filesystem
-    String[] settings = new String(Base64.getDecoder().decode(base64txt)).split(",");
-	// storage will have ClassPathResource as basepath
-    ClassPathResource cpr = new ClassPathResource("./static/");
-	  File file = new File(cpr.getPath()+settings[0]);
-    if(!file.exists()) {
-      file.getParentFile().mkdirs();
+    
+    // Ensure filename doesn't start with dot
+    if (sanitized.startsWith(".")) {
+        return null;
     }
+    
+    return sanitized;
+}
 
-    FileOutputStream fos = new FileOutputStream(file, true);
-    // First entry is the filename -> remove it
-    String[] settingsArr = Arrays.copyOfRange(settings, 1, settings.length);
-    // on setting at a linez
-    fos.write(String.join("\n",settingsArr).getBytes());
-    fos.write(("\n"+cookie[cookie.length-1]).getBytes());
-    fos.close();
-    httpResponse.getOutputStream().println("Settings Saved");
-  }
+private boolean isAllowedFileExtension(String filename) {
+    if (filename == null || filename.isEmpty()) {
+        return false;
+    }
+    
+    // Whitelist of allowed file extensions
+    String[] allowedExtensions = {".txt", ".conf", ".properties", ".json"};
+    
+    String lowerCaseFilename = filename.toLowerCase();
+    for (String extension : allowedExtensions) {
+        if (lowerCaseFilename.endsWith(extension)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 
   /**
    * Debug test for saving and reading a customer
