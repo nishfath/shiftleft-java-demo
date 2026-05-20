@@ -16,9 +16,21 @@ public class Customer {
   public Customer() {
   }
 
-  public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
+public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
       String socialInsurancenum, String tin, String phoneNumber, Address address, Set<Account> accounts) {
     super();
+    
+    // Validate and sanitize inputs during object construction
+    if (customerId != null && customerId.length() > 255) {
+        throw new IllegalArgumentException("Customer ID exceeds maximum length");
+    }
+    if (firstName != null && firstName.length() > 255) {
+        throw new IllegalArgumentException("First name exceeds maximum length");
+    }
+    if (lastName != null && lastName.length() > 255) {
+        throw new IllegalArgumentException("Last name exceeds maximum length");
+    }
+    
     this.clientId = clientId;
     this.customerId = customerId;
     this.firstName = firstName;
@@ -30,7 +42,8 @@ public class Customer {
     this.phoneNumber = phoneNumber;
     this.address = address;
     this.accounts = accounts;
-  }
+}
+
 
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
@@ -156,12 +169,17 @@ public class Customer {
     this.accounts = accounts;
   }
 
-  @Override
-  public String toString() {
-    return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId + ", firstName=" + firstName
-        + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + ", ssn=" + ssn + ", socialInsurancenum="
-        + socialInsurancenum + ", tin=" + tin + ", phoneNumber=" + phoneNumber + ", address=" + address + ", accounts="
-        + accounts + "]";
-  }
+@Override
+public String toString() {
+    // This method should only be used for logging purposes, never for HTML output
+    // For API responses, use proper JSON serialization with Jackson or Gson
+    return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId + 
+           ", firstName=" + firstName + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + 
+           ", ssn=" + (ssn != null ? "***REDACTED***" : "null") + 
+           ", socialInsurancenum=" + (socialInsurancenum != null ? "***REDACTED***" : "null") + 
+           ", tin=" + (tin != null ? "***REDACTED***" : "null") + 
+           ", phoneNumber=" + phoneNumber + ", address=" + address + ", accounts=" + accounts + "]";
+}
+
 
 }
