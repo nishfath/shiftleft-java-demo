@@ -16,21 +16,32 @@ public class Customer {
   public Customer() {
   }
 
-  public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
+public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
       String socialInsurancenum, String tin, String phoneNumber, Address address, Set<Account> accounts) {
     super();
+    // Sanitize all string inputs to prevent XSS attacks
     this.clientId = clientId;
-    this.customerId = customerId;
-    this.firstName = firstName;
-    this.lastName = lastName;
+    this.customerId = sanitizeInput(customerId);
+    this.firstName = sanitizeInput(firstName);
+    this.lastName = sanitizeInput(lastName);
     this.dateOfBirth = dateOfBirth;
-    this.ssn = ssn;
-    this.socialInsurancenum = socialInsurancenum;
-    this.tin = tin;
-    this.phoneNumber = phoneNumber;
+    this.ssn = sanitizeInput(ssn);
+    this.socialInsurancenum = sanitizeInput(socialInsurancenum);
+    this.tin = sanitizeInput(tin);
+    this.phoneNumber = sanitizeInput(phoneNumber);
     this.address = address;
     this.accounts = accounts;
-  }
+}
+
+private String sanitizeInput(String input) {
+    // Remove null values and sanitize the input
+    if (input == null) {
+        return "";
+    }
+    // Use OWASP encoder to sanitize HTML entities
+    return Encode.forHtml(input.trim());
+}
+
 
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
@@ -156,12 +167,22 @@ public class Customer {
     this.accounts = accounts;
   }
 
-  @Override
-  public String toString() {
-    return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId + ", firstName=" + firstName
-        + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + ", ssn=" + ssn + ", socialInsurancenum="
-        + socialInsurancenum + ", tin=" + tin + ", phoneNumber=" + phoneNumber + ", address=" + address + ", accounts="
-        + accounts + "]";
-  }
+@Override
+public String toString() {
+    // HTML-encode all user-controlled data to prevent XSS
+    return "Customer [id=" + Encode.forHtml(String.valueOf(id)) + 
+           ", customerId=" + Encode.forHtml(customerId) + 
+           ", clientId=" + clientId + 
+           ", firstName=" + Encode.forHtml(firstName) + 
+           ", lastName=" + Encode.forHtml(lastName) + 
+           ", dateOfBirth=" + Encode.forHtml(String.valueOf(dateOfBirth)) + 
+           ", ssn=" + Encode.forHtml(ssn) + 
+           ", socialInsurancenum=" + Encode.forHtml(socialInsurancenum) + 
+           ", tin=" + Encode.forHtml(tin) + 
+           ", phoneNumber=" + Encode.forHtml(phoneNumber) + 
+           ", address=" + (address != null ? Encode.forHtml(address.toString()) : "null") + 
+           ", accounts=" + (accounts != null ? Encode.forHtml(accounts.toString()) : "null") + "]";
+}
+
 
 }
