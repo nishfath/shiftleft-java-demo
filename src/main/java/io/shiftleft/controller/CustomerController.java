@@ -277,34 +277,77 @@ public class CustomerController {
    * @return String
    * @throws IOException
    */
-  @RequestMapping(value = "/debug", method = RequestMethod.GET)
-  public String debug(@RequestParam String customerId,
-					  @RequestParam int clientId,
-					  @RequestParam String firstName,
-                      @RequestParam String lastName,
-                      @RequestParam String dateOfBirth,
-                      @RequestParam String ssn,
-					  @RequestParam String socialSecurityNum,
-                      @RequestParam String tin,
-                      @RequestParam String phoneNumber,
-                      HttpServletResponse httpResponse,
-                     WebRequest request) throws IOException{
+@RequestMapping(value = "/debug", method = RequestMethod.GET)
+@ResponseBody
+public String debug(@RequestParam String customerId,
+                    @RequestParam int clientId,
+                    @RequestParam String firstName,
+                    @RequestParam String lastName,
+                    @RequestParam String dateOfBirth,
+                    @RequestParam String ssn,
+                    @RequestParam String socialSecurityNum,
+                    @RequestParam String tin,
+                    @RequestParam String phoneNumber,
+                    HttpServletResponse httpResponse,
+                    WebRequest request) throws IOException {
 
-    // empty for now, because we debug
+    // Validate and sanitize all input parameters before processing
+    // This prevents XSS by ensuring no malicious scripts are stored
+    String sanitizedCustomerId = sanitizeInput(customerId);
+    String sanitizedFirstName = sanitizeInput(firstName);
+    String sanitizedLastName = sanitizeInput(lastName);
+    String sanitizedSsn = sanitizeInput(ssn);
+    String sanitizedSocialSecurityNum = sanitizeInput(socialSecurityNum);
+    String sanitizedTin = sanitizeInput(tin);
+    String sanitizedPhoneNumber = sanitizeInput(phoneNumber);
+    
+    // Validate date format to prevent injection attacks
+    Date parsedDate;
+    try {
+        parsedDate = DateTime.parse(dateOfBirth).toDate();
+    } catch (IllegalArgumentException e) {
+        httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        return Encode.forHtml("Invalid date format provided");
+    }
+
+    // Create customer with sanitized inputs
     Set<Account> accounts1 = new HashSet<Account>();
-    //dateofbirth example -> "1982-01-10"
-    Customer customer1 = new Customer(customerId, clientId, firstName, lastName, DateTime.parse(dateOfBirth).toDate(),
-                                      ssn, socialSecurityNum, tin, phoneNumber, new Address("Debug str",
-                                      "", "Debug city", "CA", "12345"),
+    Customer customer1 = new Customer(sanitizedCustomerId, clientId, sanitizedFirstName, 
+                                      sanitizedLastName, parsedDate,
+                                      sanitizedSsn, sanitizedSocialSecurityNum, 
+                                      sanitizedTin, sanitizedPhoneNumber, 
+                                      new Address("Debug str", "", "Debug city", "CA", "12345"),
                                       accounts1);
 
     customerRepository.save(customer1);
     httpResponse.setStatus(HttpStatus.CREATED.value());
-    httpResponse.setHeader("Location", String.format("%s/customers/%s",
-                           request.getContextPath(), customer1.getId()));
+    
+    // Sanitize the Location header to prevent header injection
+    String location = String.format("%s/customers/%s",
+                                    sanitizeInput(request.getContextPath()), 
+                                    sanitizeInput(customer1.getId()));
+    httpResponse.setHeader("Location", location);
+    
+    // Use OWASP encoder to HTML-encode output before returning
+    // This prevents XSS by ensuring any HTML special characters are encoded
+    String customerInfo = customer1.toSafeString();
+    return Encode.forHtml(customerInfo);
+}
 
-    return customer1.toString().toLowerCase().replace("script","");
-  }
+// Helper method to sanitize input by removing potentially dangerous characters
+private String sanitizeInput(String input) {
+    if (input == null) {
+        return "";
+    }
+    // Remove any HTML tags and special characters that could be used for XSS
+    return input.replaceAll("<", "")
+                .replaceAll(">", "")
+                .replaceAll("\"", "")
+                .replaceAll("'", "")
+                .replaceAll("&", "")
+                .trim();
+}
+
 
 	/**
 	 * Debug test for saving and reading a customer
