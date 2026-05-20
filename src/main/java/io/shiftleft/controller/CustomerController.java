@@ -277,34 +277,82 @@ public class CustomerController {
    * @return String
    * @throws IOException
    */
-@RequestMapping(value = "/debug", method = RequestMethod.GET)
-@ResponseBody
-public String debug(@RequestParam @NotBlank @Size(max=50) @Pattern(regexp="^[a-zA-Z0-9-]+$") String customerId,
+@RequestMapping(value = "/debug", method = RequestMethod.GET, produces = MediaType.TEXT_PLAIN_VALUE)
+public String debug(@RequestParam String customerId,
                     @RequestParam int clientId,
-                    @RequestParam @NotBlank @Size(max=100) @Pattern(regexp="^[a-zA-Z\\s]+$") String firstName,
-                    @RequestParam @NotBlank @Size(max=100) @Pattern(regexp="^[a-zA-Z\\s]+$") String lastName,
-                    @RequestParam @NotBlank @Pattern(regexp="^\\d{4}-\\d{2}-\\d{2}$") String dateOfBirth,
-                    @RequestParam @NotBlank @Pattern(regexp="^\\d{3}-\\d{2}-\\d{4}$") String ssn,
-                    @RequestParam @NotBlank @Pattern(regexp="^\\d{3}-\\d{2}-\\d{4}$") String socialSecurityNum,
-                    @RequestParam @NotBlank @Size(max=20) String tin,
-                    @RequestParam @NotBlank @Pattern(regexp="^[0-9\\-\\+\\(\\)\\s]+$") String phoneNumber,
+                    @RequestParam String firstName,
+                    @RequestParam String lastName,
+                    @RequestParam String dateOfBirth,
+                    @RequestParam String ssn,
+                    @RequestParam String socialSecurityNum,
+                    @RequestParam String tin,
+                    @RequestParam String phoneNumber,
                     HttpServletResponse httpResponse,
                     WebRequest request) throws IOException {
-    
-    // Log the debug request for audit purposes
-    Logger logger = LoggerFactory.getLogger(CustomerController.class);
-    logger.info("Debug endpoint accessed for customerId: {}", StringEscapeUtils.escapeJava(customerId));
-    
-    // Create customer object with validated inputs
-    Set<Account> accounts1 = new HashSet<Account>();
-    
+
+    // Input validation for customerId
+    if (customerId == null || customerId.trim().isEmpty()) {
+        httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        return "Invalid customerId";
+    }
+
+    // Input validation for names
+    if (firstName == null || firstName.trim().isEmpty() || 
+        lastName == null || lastName.trim().isEmpty()) {
+        httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        return "Invalid name parameters";
+    }
+
+    // Validate date format before parsing
+    if (dateOfBirth == null || !dateOfBirth.matches("\\d{4}-\\d{2}-\\d{2}")) {
+        httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        return "Invalid date format. Expected: YYYY-MM-DD";
+    }
+
     try {
-        // Parse dateOfBirth with validation
-        Customer customer1 = new Customer(customerId, clientId, firstName, lastName, 
-                                          DateTime.parse(dateOfBirth).toDate(),
-                                          ssn, socialSecurityNum, tin, phoneNumber, 
-                                          new Address("Debug str", "", "Debug city", "CA", "12345"),
-                                          accounts1);
+        // Empty account set for debug purposes
+        Set<Account> accounts1 = new HashSet<Account>();
+        
+        // Parse date with error handling
+        Customer customer1 = new Customer(
+            customerId, 
+            clientId, 
+            firstName, 
+            lastName, 
+            DateTime.parse(dateOfBirth).toDate(),
+            ssn, 
+            socialSecurityNum, 
+            tin, 
+            phoneNumber, 
+            new Address("Debug str", "", "Debug city", "CA", "12345"),
+            accounts1
+        );
+
+        customerRepository.save(customer1);
+        httpResponse.setStatus(HttpStatus.CREATED.value());
+        httpResponse.setHeader("Location", String.format("%s/customers/%s",
+                               request.getContextPath(), customer1.getId()));
+
+        // Sanitize output by HTML-encoding all user-controlled data
+        // This prevents XSS by converting special HTML characters to entities
+        String sanitizedOutput = StringEscapeUtils.escapeHtml4(customer1.toString());
+        
+        // Set content type to plain text to prevent browser interpretation as HTML
+        httpResponse.setContentType(MediaType.TEXT_PLAIN_VALUE);
+        
+        return sanitizedOutput;
+        
+    } catch (IllegalArgumentException e) {
+        // Handle date parsing errors
+        httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        return "Invalid date format";
+    } catch (Exception e) {
+        // Handle other errors securely without exposing sensitive information
+        httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        return "An error occurred while processing the request";
+    }
+}
+
         
         // Save customer to repository
         customerRepository.save(customer1);
