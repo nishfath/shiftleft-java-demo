@@ -16,21 +16,39 @@ public class Customer {
   public Customer() {
   }
 
-  public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
+public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
       String socialInsurancenum, String tin, String phoneNumber, Address address, Set<Account> accounts) {
     super();
+    
+    // Validate and sanitize inputs before assignment
+    if (customerId == null || firstName == null || lastName == null) {
+        throw new IllegalArgumentException("Required fields cannot be null");
+    }
+    
     this.clientId = clientId;
-    this.customerId = customerId;
-    this.firstName = firstName;
-    this.lastName = lastName;
+    this.customerId = sanitizeInput(customerId);
+    this.firstName = sanitizeInput(firstName);
+    this.lastName = sanitizeInput(lastName);
     this.dateOfBirth = dateOfBirth;
-    this.ssn = ssn;
-    this.socialInsurancenum = socialInsurancenum;
-    this.tin = tin;
-    this.phoneNumber = phoneNumber;
+    this.ssn = sanitizeInput(ssn);
+    this.socialInsurancenum = sanitizeInput(socialInsurancenum);
+    this.tin = sanitizeInput(tin);
+    this.phoneNumber = sanitizeInput(phoneNumber);
     this.address = address;
     this.accounts = accounts;
-  }
+}
+
+// Helper method to sanitize input by removing potentially dangerous characters
+private String sanitizeInput(String input) {
+    if (input == null) {
+        return null;
+    }
+    // Remove any HTML tags and script content
+    return input.replaceAll("<[^>]*>", "")
+                .replaceAll("javascript:", "")
+                .replaceAll("on\\w+\\s*=", "");
+}
+
 
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
@@ -156,12 +174,43 @@ public class Customer {
     this.accounts = accounts;
   }
 
-  @Override
-  public String toString() {
-    return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId + ", firstName=" + firstName
-        + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + ", ssn=" + ssn + ", socialInsurancenum="
-        + socialInsurancenum + ", tin=" + tin + ", phoneNumber=" + phoneNumber + ", address=" + address + ", accounts="
-        + accounts + "]";
-  }
+@Override
+public String toString() {
+    // Create string representation with sanitized data
+    // Note: The actual encoding should happen at the presentation layer
+    return "Customer [id=" + sanitizeForOutput(String.valueOf(id)) + 
+           ", customerId=" + sanitizeForOutput(customerId) + 
+           ", clientId=" + clientId + 
+           ", firstName=" + sanitizeForOutput(firstName) + 
+           ", lastName=" + sanitizeForOutput(lastName) + 
+           ", dateOfBirth=" + sanitizeForOutput(String.valueOf(dateOfBirth)) + 
+           ", ssn=" + maskSensitiveData(ssn) + 
+           ", socialInsurancenum=" + maskSensitiveData(socialInsurancenum) + 
+           ", tin=" + maskSensitiveData(tin) + 
+           ", phoneNumber=" + sanitizeForOutput(phoneNumber) + 
+           ", address=" + sanitizeForOutput(String.valueOf(address)) + 
+           ", accounts=" + sanitizeForOutput(String.valueOf(accounts)) + "]";
+}
+
+// Helper method to sanitize output data
+private String sanitizeForOutput(String value) {
+    if (value == null) {
+        return "null";
+    }
+    return value.replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll("\"", "&quot;")
+                .replaceAll("'", "&#x27;")
+                .replaceAll("/", "&#x2F;");
+}
+
+// Helper method to mask sensitive data in logs/output
+private String maskSensitiveData(String value) {
+    if (value == null || value.length() < 4) {
+        return "****";
+    }
+    return "****" + value.substring(value.length() - 4);
+}
+
 
 }
