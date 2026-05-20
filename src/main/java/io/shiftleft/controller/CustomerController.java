@@ -277,34 +277,113 @@ public class CustomerController {
    * @return String
    * @throws IOException
    */
-  @RequestMapping(value = "/debug", method = RequestMethod.GET)
-  public String debug(@RequestParam String customerId,
-					  @RequestParam int clientId,
-					  @RequestParam String firstName,
-                      @RequestParam String lastName,
-                      @RequestParam String dateOfBirth,
-                      @RequestParam String ssn,
-					  @RequestParam String socialSecurityNum,
-                      @RequestParam String tin,
-                      @RequestParam String phoneNumber,
-                      HttpServletResponse httpResponse,
-                     WebRequest request) throws IOException{
+@RequestMapping(value = "/debug", method = RequestMethod.GET, produces = MediaType.TEXT_PLAIN_VALUE)
+public String debug(@RequestParam String customerId,
+                    @RequestParam int clientId,
+                    @RequestParam String firstName,
+                    @RequestParam String lastName,
+                    @RequestParam String dateOfBirth,
+                    @RequestParam String ssn,
+                    @RequestParam String socialSecurityNum,
+                    @RequestParam String tin,
+                    @RequestParam String phoneNumber,
+                    HttpServletResponse httpResponse,
+                    WebRequest request) throws IOException {
 
-    // empty for now, because we debug
-    Set<Account> accounts1 = new HashSet<Account>();
-    //dateofbirth example -> "1982-01-10"
-    Customer customer1 = new Customer(customerId, clientId, firstName, lastName, DateTime.parse(dateOfBirth).toDate(),
-                                      ssn, socialSecurityNum, tin, phoneNumber, new Address("Debug str",
-                                      "", "Debug city", "CA", "12345"),
-                                      accounts1);
+    // Input validation for customerId
+    if (customerId == null || customerId.trim().isEmpty()) {
+        httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        return "Invalid customerId";
+    }
 
-    customerRepository.save(customer1);
-    httpResponse.setStatus(HttpStatus.CREATED.value());
-    httpResponse.setHeader("Location", String.format("%s/customers/%s",
-                           request.getContextPath(), customer1.getId()));
+    // Input validation for names
+    if (firstName == null || firstName.trim().isEmpty() || 
+        lastName == null || lastName.trim().isEmpty()) {
+        httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        return "Invalid name parameters";
+    }
 
-    return customer1.toString().toLowerCase().replace("script","");
-  }
+    // Validate date format before parsing
+    if (dateOfBirth == null || !dateOfBirth.matches("\\d{4}-\\d{2}-\\d{2}")) {
+        httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        return "Invalid date format. Expected: YYYY-MM-DD";
+    }
+
+    try {
+        // Empty account set for debug purposes
+        Set<Account> accounts1 = new HashSet<Account>();
+        
+        // Parse date with error handling
+        Customer customer1 = new Customer(
+            customerId, 
+            clientId, 
+            firstName, 
+            lastName, 
+            DateTime.parse(dateOfBirth).toDate(),
+            ssn, 
+            socialSecurityNum, 
+            tin, 
+            phoneNumber, 
+            new Address("Debug str", "", "Debug city", "CA", "12345"),
+            accounts1
+        );
+
+        customerRepository.save(customer1);
+        httpResponse.setStatus(HttpStatus.CREATED.value());
+        httpResponse.setHeader("Location", String.format("%s/customers/%s",
+                               request.getContextPath(), customer1.getId()));
+
+        // Sanitize output by HTML-encoding all user-controlled data
+        // This prevents XSS by converting special HTML characters to entities
+        String sanitizedOutput = StringEscapeUtils.escapeHtml4(customer1.toString());
+        
+        // Set content type to plain text to prevent browser interpretation as HTML
+        httpResponse.setContentType(MediaType.TEXT_PLAIN_VALUE);
+        
+        return sanitizedOutput;
+        
+    } catch (IllegalArgumentException e) {
+        // Handle date parsing errors
+        httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        return "Invalid date format";
+    } catch (Exception e) {
+        // Handle other errors securely without exposing sensitive information
+        httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        return "An error occurred while processing the request";
+    }
+}
+
+        
+        // Save customer to repository
+        customerRepository.save(customer1);
+        
+        // Set response status and location header
+        httpResponse.setStatus(HttpStatus.CREATED.value());
+        httpResponse.setHeader("Location", String.format("%s/customers/%s",
+                               request.getContextPath(), customer1.getId()));
+        
+        // Return sanitized JSON response instead of toString() to avoid XSS
+        // Set content type to application/json to prevent HTML interpretation
+        httpResponse.setContentType("application/json");
+        
+        // Create a safe JSON response with escaped values
+        String safeResponse = String.format(
+            "{\"status\":\"created\",\"customerId\":\"%s\",\"clientId\":%d,\"message\":\"Customer created successfully\"}",
+            StringEscapeUtils.escapeJson(customerId),
+            clientId
+        );
+        
+        return safeResponse;
+        
+    } catch (IllegalArgumentException e) {
+        // Handle date parsing errors
+        logger.error("Invalid date format provided: {}", dateOfBirth);
+        httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+        httpResponse.setContentType("application/json");
+        return "{\"error\":\"Invalid date format. Expected format: YYYY-MM-DD\"}";
+    }
+}
+
 
 	/**
 	 * Debug test for saving and reading a customer

@@ -16,9 +16,11 @@ public class Customer {
   public Customer() {
   }
 
-  public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
+public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
       String socialInsurancenum, String tin, String phoneNumber, Address address, Set<Account> accounts) {
     super();
+    // Store data as-is in the model
+    // Sanitization should occur at the presentation layer when displaying to users
     this.clientId = clientId;
     this.customerId = customerId;
     this.firstName = firstName;
@@ -30,7 +32,18 @@ public class Customer {
     this.phoneNumber = phoneNumber;
     this.address = address;
     this.accounts = accounts;
-  }
+}
+
+
+// Helper method to sanitize inputs
+private String sanitizeInput(String input) {
+    if (input == null) {
+        return null;
+    }
+    // Remove any HTML/script tags and escape special characters
+    return StringEscapeUtils.escapeHtml4(input.trim());
+}
+
 
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
@@ -156,12 +169,26 @@ public class Customer {
     this.accounts = accounts;
   }
 
-  @Override
-  public String toString() {
+@Override
+public String toString() {
+    // Note: This toString method is used for debugging purposes
+    // When returning this to a web response, it MUST be HTML-encoded
+    // The encoding is handled at the controller layer (CustomerController.debug)
     return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId + ", firstName=" + firstName
         + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + ", ssn=" + ssn + ", socialInsurancenum="
         + socialInsurancenum + ", tin=" + tin + ", phoneNumber=" + phoneNumber + ", address=" + address + ", accounts="
         + accounts + "]";
-  }
+}
+
+
+// Helper method to mask sensitive data in logs and output
+private String maskSensitiveData(String data) {
+    if (data == null || data.length() < 4) {
+        return "****";
+    }
+    // Show only last 4 characters for sensitive data
+    return "****" + StringEscapeUtils.escapeHtml4(data.substring(data.length() - 4));
+}
+
 
 }
