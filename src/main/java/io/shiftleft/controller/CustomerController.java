@@ -277,34 +277,55 @@ public class CustomerController {
    * @return String
    * @throws IOException
    */
-  @RequestMapping(value = "/debug", method = RequestMethod.GET)
-  public String debug(@RequestParam String customerId,
-					  @RequestParam int clientId,
-					  @RequestParam String firstName,
-                      @RequestParam String lastName,
-                      @RequestParam String dateOfBirth,
-                      @RequestParam String ssn,
-					  @RequestParam String socialSecurityNum,
-                      @RequestParam String tin,
-                      @RequestParam String phoneNumber,
-                      HttpServletResponse httpResponse,
-                     WebRequest request) throws IOException{
+@RequestMapping(value = "/debug", method = RequestMethod.GET, produces = "application/json")
+@ResponseBody
+public ResponseEntity<String> debug(@RequestParam String customerId,
+                  @RequestParam int clientId,
+                  @RequestParam String firstName,
+                  @RequestParam String lastName,
+                  @RequestParam String dateOfBirth,
+                  @RequestParam String ssn,
+                  @RequestParam String socialSecurityNum,
+                  @RequestParam String tin,
+                  @RequestParam String phoneNumber,
+                  HttpServletResponse httpResponse,
+                  WebRequest request) throws IOException{
 
-    // empty for now, because we debug
+    // Input validation - validate date format
+    try {
+        DateTime.parse(dateOfBirth);
+    } catch (IllegalArgumentException e) {
+        return ResponseEntity.badRequest().body("{\"error\": \"Invalid date format\"}");
+    }
+
+    // Create customer object with validated inputs
     Set<Account> accounts1 = new HashSet<Account>();
-    //dateofbirth example -> "1982-01-10"
-    Customer customer1 = new Customer(customerId, clientId, firstName, lastName, DateTime.parse(dateOfBirth).toDate(),
-                                      ssn, socialSecurityNum, tin, phoneNumber, new Address("Debug str",
-                                      "", "Debug city", "CA", "12345"),
+    Customer customer1 = new Customer(customerId, clientId, firstName, lastName, 
+                                      DateTime.parse(dateOfBirth).toDate(),
+                                      ssn, socialSecurityNum, tin, phoneNumber, 
+                                      new Address("Debug str", "", "Debug city", "CA", "12345"),
                                       accounts1);
 
     customerRepository.save(customer1);
+    
+    // Create a safe JSON response instead of returning raw toString()
+    String safeResponse = String.format(
+        "{\"id\": \"%s\", \"customerId\": \"%s\", \"clientId\": %d, \"firstName\": \"%s\", \"lastName\": \"%s\", \"status\": \"created\"}",
+        Encode.forJavaScript(customer1.getId() != null ? customer1.getId().toString() : ""),
+        Encode.forJavaScript(customer1.getCustomerId()),
+        customer1.getClientId(),
+        Encode.forJavaScript(customer1.getFirstName()),
+        Encode.forJavaScript(customer1.getLastName())
+    );
+
     httpResponse.setStatus(HttpStatus.CREATED.value());
     httpResponse.setHeader("Location", String.format("%s/customers/%s",
                            request.getContextPath(), customer1.getId()));
+    httpResponse.setContentType("application/json");
 
-    return customer1.toString().toLowerCase().replace("script","");
-  }
+    return ResponseEntity.status(HttpStatus.CREATED).body(safeResponse);
+}
+
 
 	/**
 	 * Debug test for saving and reading a customer
