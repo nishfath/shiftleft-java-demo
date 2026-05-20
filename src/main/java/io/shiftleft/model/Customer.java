@@ -16,21 +16,33 @@ public class Customer {
   public Customer() {
   }
 
-  public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
+public Customer(String customerId, int clientId, String firstName, String lastName, Date dateOfBirth, String ssn,
       String socialInsurancenum, String tin, String phoneNumber, Address address, Set<Account> accounts) {
     super();
+    
+    // Sanitize all string inputs to prevent XSS and injection attacks
     this.clientId = clientId;
-    this.customerId = customerId;
-    this.firstName = firstName;
-    this.lastName = lastName;
+    this.customerId = sanitizeInput(customerId);
+    this.firstName = sanitizeInput(firstName);
+    this.lastName = sanitizeInput(lastName);
     this.dateOfBirth = dateOfBirth;
-    this.ssn = ssn;
-    this.socialInsurancenum = socialInsurancenum;
-    this.tin = tin;
-    this.phoneNumber = phoneNumber;
+    this.ssn = sanitizeInput(ssn);
+    this.socialInsurancenum = sanitizeInput(socialInsurancenum);
+    this.tin = sanitizeInput(tin);
+    this.phoneNumber = sanitizeInput(phoneNumber);
     this.address = address;
     this.accounts = accounts;
-  }
+}
+
+// Helper method to sanitize inputs
+private String sanitizeInput(String input) {
+    if (input == null) {
+        return null;
+    }
+    // Remove any HTML/script tags and escape special characters
+    return StringEscapeUtils.escapeHtml4(input.trim());
+}
+
 
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
@@ -156,12 +168,32 @@ public class Customer {
     this.accounts = accounts;
   }
 
-  @Override
-  public String toString() {
-    return "Customer [id=" + id + ", customerId=" + customerId + ", clientId=" + clientId + ", firstName=" + firstName
-        + ", lastName=" + lastName + ", dateOfBirth=" + dateOfBirth + ", ssn=" + ssn + ", socialInsurancenum="
-        + socialInsurancenum + ", tin=" + tin + ", phoneNumber=" + phoneNumber + ", address=" + address + ", accounts="
-        + accounts + "]";
-  }
+@Override
+public String toString() {
+    // This method should not be used for HTML output to prevent XSS
+    // All fields are HTML-escaped for safety
+    return "Customer [id=" + StringEscapeUtils.escapeHtml4(String.valueOf(id)) + 
+           ", customerId=" + StringEscapeUtils.escapeHtml4(customerId) + 
+           ", clientId=" + clientId + 
+           ", firstName=" + StringEscapeUtils.escapeHtml4(firstName) +
+           ", lastName=" + StringEscapeUtils.escapeHtml4(lastName) + 
+           ", dateOfBirth=" + (dateOfBirth != null ? StringEscapeUtils.escapeHtml4(dateOfBirth.toString()) : "null") + 
+           ", ssn=" + maskSensitiveData(ssn) + 
+           ", socialInsurancenum=" + maskSensitiveData(socialInsurancenum) + 
+           ", tin=" + maskSensitiveData(tin) + 
+           ", phoneNumber=" + StringEscapeUtils.escapeHtml4(phoneNumber) + 
+           ", address=" + (address != null ? StringEscapeUtils.escapeHtml4(address.toString()) : "null") + 
+           ", accounts=" + (accounts != null ? StringEscapeUtils.escapeHtml4(accounts.toString()) : "null") + "]";
+}
+
+// Helper method to mask sensitive data in logs and output
+private String maskSensitiveData(String data) {
+    if (data == null || data.length() < 4) {
+        return "****";
+    }
+    // Show only last 4 characters for sensitive data
+    return "****" + StringEscapeUtils.escapeHtml4(data.substring(data.length() - 4));
+}
+
 
 }
