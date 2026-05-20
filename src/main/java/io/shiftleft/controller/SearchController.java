@@ -17,16 +17,46 @@ import org.springframework.web.bind.annotation.RequestParam;
 @Controller
 public class SearchController {
 
-  @RequestMapping(value = "/search/user", method = RequestMethod.GET)
-  public String doGetSearch(@RequestParam String foo, HttpServletResponse response, HttpServletRequest request) {
-    java.lang.Object message = new Object();
-    try {
-      ExpressionParser parser = new SpelExpressionParser();
-      Expression exp = parser.parseExpression(foo);
-      message = (Object) exp.getValue();
-    } catch (Exception ex) {
-      System.out.println(ex.getMessage());
+@RequestMapping(value = "/search/user", method = RequestMethod.GET)
+@ResponseBody
+public String doGetSearch(
+    @RequestParam @Size(max = 100) String foo, 
+    HttpServletResponse response, 
+    HttpServletRequest request) {
+  
+  // Set secure response headers to prevent XSS
+  response.setHeader("Content-Type", "text/plain; charset=UTF-8");
+  response.setHeader("X-Content-Type-Options", "nosniff");
+  response.setHeader("X-XSS-Protection", "1; mode=block");
+  
+  // Initialize logger for security monitoring
+  Logger logger = LoggerFactory.getLogger(SearchController.class);
+  
+  String message = "Invalid input";
+  
+  try {
+    // Input validation - only allow alphanumeric characters and basic punctuation
+    if (foo == null || !foo.matches("^[a-zA-Z0-9\\s,.'-]{1,100}$")) {
+      logger.warn("Invalid search input attempted: {}", foo);
+      return Encode.forHtml("Invalid search input. Only alphanumeric characters allowed.");
     }
+    
+    // REMOVED SpEL parser to prevent Expression Language Injection
+    // SpEL allows arbitrary code execution and should not be used with user input
+    // Replace with safe string processing
+    message = "Search query: " + foo;
+    
+    logger.info("Search performed with safe input: {}", foo);
+    
+  } catch (Exception ex) {
+    logger.error("Error processing search request", ex);
+    message = "An error occurred processing your request";
+  }
+  
+  // Apply HTML encoding to prevent XSS attacks
+  return Encode.forHtml(message);
+}
+
     return message.toString();
   }
 }
