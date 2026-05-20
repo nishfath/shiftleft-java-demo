@@ -277,34 +277,72 @@ public class CustomerController {
    * @return String
    * @throws IOException
    */
-  @RequestMapping(value = "/debug", method = RequestMethod.GET)
-  public String debug(@RequestParam String customerId,
-					  @RequestParam int clientId,
-					  @RequestParam String firstName,
-                      @RequestParam String lastName,
-                      @RequestParam String dateOfBirth,
-                      @RequestParam String ssn,
-					  @RequestParam String socialSecurityNum,
-                      @RequestParam String tin,
-                      @RequestParam String phoneNumber,
-                      HttpServletResponse httpResponse,
-                     WebRequest request) throws IOException{
+@RequestMapping(value = "/debug", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+@ResponseBody
+public ResponseEntity<String> debug(@RequestParam String customerId,
+                  @RequestParam int clientId,
+                  @RequestParam String firstName,
+                  @RequestParam String lastName,
+                  @RequestParam String dateOfBirth,
+                  @RequestParam String ssn,
+                  @RequestParam String socialSecurityNum,
+                  @RequestParam String tin,
+                  @RequestParam String phoneNumber,
+                  HttpServletResponse httpResponse,
+                  WebRequest request) throws IOException {
 
-    // empty for now, because we debug
-    Set<Account> accounts1 = new HashSet<Account>();
-    //dateofbirth example -> "1982-01-10"
-    Customer customer1 = new Customer(customerId, clientId, firstName, lastName, DateTime.parse(dateOfBirth).toDate(),
-                                      ssn, socialSecurityNum, tin, phoneNumber, new Address("Debug str",
-                                      "", "Debug city", "CA", "12345"),
-                                      accounts1);
+    try {
+        // Input validation for date format
+        DateTime parsedDate;
+        try {
+            parsedDate = DateTime.parse(dateOfBirth);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("{\"error\": \"Invalid date format\"}");
+        }
 
-    customerRepository.save(customer1);
-    httpResponse.setStatus(HttpStatus.CREATED.value());
-    httpResponse.setHeader("Location", String.format("%s/customers/%s",
-                           request.getContextPath(), customer1.getId()));
+        // Validate required fields are not empty or null
+        if (customerId == null || customerId.trim().isEmpty() ||
+            firstName == null || firstName.trim().isEmpty() ||
+            lastName == null || lastName.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("{\"error\": \"Required fields cannot be empty\"}");
+        }
 
-    return customer1.toString().toLowerCase().replace("script","");
-  }
+        // Create customer object with validated data
+        Set<Account> accounts1 = new HashSet<Account>();
+        Customer customer1 = new Customer(customerId, clientId, firstName, lastName, 
+                                          parsedDate.toDate(), ssn, socialSecurityNum, 
+                                          tin, phoneNumber, 
+                                          new Address("Debug str", "", "Debug city", "CA", "12345"),
+                                          accounts1);
+
+        // Save customer to repository
+        customerRepository.save(customer1);
+
+        // Set response headers
+        httpResponse.setStatus(HttpStatus.CREATED.value());
+        httpResponse.setHeader("Location", String.format("%s/customers/%s",
+                               request.getContextPath(), customer1.getId()));
+
+        // Return JSON response instead of HTML to prevent XSS
+        // Use proper JSON serialization instead of toString()
+        String jsonResponse = String.format(
+            "{\"id\": \"%s\", \"customerId\": \"%s\", \"clientId\": %d, \"firstName\": \"%s\", \"lastName\": \"%s\"}",
+            Encode.forJavaScript(String.valueOf(customer1.getId())),
+            Encode.forJavaScript(customer1.getCustomerId()),
+            customer1.getClientId(),
+            Encode.forJavaScript(customer1.getFirstName()),
+            Encode.forJavaScript(customer1.getLastName())
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(jsonResponse);
+        
+    } catch (Exception e) {
+        // Log the exception (use proper logging framework)
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                           .body("{\"error\": \"An error occurred while processing the request\"}");
+    }
+}
+
 
 	/**
 	 * Debug test for saving and reading a customer
