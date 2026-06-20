@@ -38,7 +38,7 @@ jobs:
       id: extract_branch
     - name: NextGen Static Analysis
       # Run the analyzer and wait for it to finis, the app is a part of a group and we can dynamicaly capture the branch we're on for tagging. It's a java app and we point to where the binary can be found                        
-      run: ${GITHUB_WORKSPACE}/sl analyze --wait --app shiftleft-java-demo --tag app.group=HSL --tag branch=${{ github.head_ref || steps.extract_branch.outputs.branch }} --java --cpg target/hello-shiftleft-*.jar
+      run: ${GITHUB_WORKSPACE}/sl analyze --wait  --app shiftleft-java-demo --force --tag app.group=HSL --tag branch=${{ github.head_ref || steps.extract_branch.outputs.branch }} --java --cpg target/hello-shiftleft-*.jar
       env:
         SHIFTLEFT_ACCESS_TOKEN: ${{ secrets.SHIFTLEFT_ACCESS_TOKEN }}
         SHIFTLEFT_ORG_ID: ${{ secrets.SHIFTLEFT_ORG_ID }}
